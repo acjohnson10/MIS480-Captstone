@@ -1,0 +1,91 @@
+*Code for MIS480 Captstone*;
+*Frequency Table of Data*;
+PROC FREQ Data=work.hpsafac;
+tables state/ out=work.hpsastfreq;
+run;
+
+*Applying Grouping to Frequency based on Percentage*;
+DATA DataFreq;
+set work.hpsastfreq;
+if 0<=percent<1 then Priority='Low';
+else if 1<=percent<2 then Priority='Med';
+else Priority='High';
+run;
+
+*Bar Graph of Group by State*;
+title 'Number of States in Priority Groups';
+PROC SGPLOT Data=DataFreq;
+vbar Priority/
+datalabel dataskin=matte
+baselineattrs=(thickness=0);
+xaxis display=(noticks);
+yaxis label='Number of States';
+run;
+
+*Sort datasets by state*;
+proc sort data=work.hpsafac;
+by State;
+run;
+
+proc sort data=datafreq;
+by State;
+run;
+
+*Apply Group to main data set*;
+data hpsapriority;
+merge work.hpsafac datafreq;
+by State;
+run;
+
+*Number of Facilities in Priority Groups*;
+title 'Number of Facilites in Priority Groups';
+PROC SGPLOT Data=hpsapriority;
+vbar Priority/
+datalabel dataskin=matte
+baselineattrs=(thickness=0);
+xaxis display=(noticks);
+yaxis label='Number of Facilities';
+run;
+
+*Extract High Priority States*;
+Proc Sort Data=hpsapriority; 
+by Priority;
+run;
+
+Data hspapriorityhigh;
+set hpsapriority;
+if Priority='Low' then delete;
+if Priority='Med' then Delete;
+run;
+
+*Graph of Facilities by Status*;
+title 'Number of Facilites By HPSA Status (High Priority States)';
+PROC SGPLOT Data=hspapriorityhigh;
+vbar 'HPSA Status'n/
+datalabel dataskin=matte
+baselineattrs=(thickness=0);
+xaxis display=(noticks);
+yaxis label='Number of Facilities';
+run;
+
+*Stacked Bar Chart*; 
+PROC SGPLOT Data=hspapriorityhigh;
+TITLE 'HPSA Status Distribution by State';
+HBAR State / GROUP = 'HPSA Status'n stat=sum
+	datalabel datalabelattrs=(weight=bold);
+yaxis grid label='Number of Facilities';
+run;
+
+*Designated Facilities*;
+Data hspaprioritydesignated;
+set hspapriorityhigh;
+if 'HPSA Status'n='Withdrawn' then delete;
+if 'HPSA Status'n='Proposed For Withdrawal' then Delete;
+run;
+
+*Query of Facilities in Specific State*; 
+PROC SQL;
+title 'CA Test Queary';
+select 'HPSA Name'n, 'HPSA ID'n, 'Designation Type'n, state
+from hspaprioritydesignated
+where state = 'CA';
